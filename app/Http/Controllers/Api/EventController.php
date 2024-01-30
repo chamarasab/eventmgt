@@ -16,7 +16,17 @@ class EventController extends Controller
     {
         //return Event::all();
         //return EventResource::collection(Event::all());
-        return EventResource::collection(Event::with('user')->get());
+        //$this->shouldIncludeRelation('user');
+        $query = Event::query();
+        $relations = ['user', 'attendees', 'attendees.user'];
+        foreach ($relations as $relation) {
+            $query->when(
+                $this->shouldIncludeRelation($relation),
+                fn($q)=> $q->with($relation)
+            );
+        }
+        //Event::with('user')->get()
+        return EventResource::collection($query->latest()->paginate());
     }
 
     /**
@@ -62,6 +72,20 @@ class EventController extends Controller
             ])
         );
         return new EventResource($event);
+    }
+
+    protected function shouldIncludeRelation(string $relation): bool
+    {
+        $include = request()->query('include');
+
+        if (!$include) {
+            return false;
+        }
+        $relations = array_map('trim',explode(',', $include));
+
+        //dd($relations);
+        //return true;
+        return in_array($relation, $relations);
     }
 
     /**
